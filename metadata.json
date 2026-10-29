@@ -1,0 +1,6 @@
+{
+  "name": "Al-Arabiya Pintar - Media Pembelajaran Bahasa Arab AI",
+  "description": "Media pembelajaran Bahasa Arab interaktif dengan materi mufrodat, tata bahasa (nahwu & shorof), audio pelafalan, latihan kuis, progres santri, dan AI Arabic Tutor server-side Gemini.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

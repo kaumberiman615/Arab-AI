@@ -1,0 +1,125 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Default Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Global Security Primitives & Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Admin verified email check
+    function isAdmin() {
+      return isSignedIn() &&
+        request.auth.token.email != null &&
+        request.auth.token.email.lower() == 'fakhitaruqayyah04@gmail.com' &&
+        request.auth.token.email_verified == true;
+    }
+
+    // 3. Entity Validation Blueprints
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'role']) &&
+        data.keys().hasOnly(['uid', 'email', 'displayName', 'role', 'photoURL', 'institution', 'provider', 'createdAt', 'lastLogin']) &&
+        data.uid == request.auth.uid &&
+        data.uid is string && data.uid.size() <= 128 &&
+        data.email is string && data.email.size() <= 256 &&
+        data.displayName is string && data.displayName.size() <= 128 &&
+        data.role in ['admin', 'student'] &&
+        (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1024)) &&
+        (!('institution' in data) || (data.institution is string && data.institution.size() <= 256));
+    }
+
+    function isValidProgress(data) {
+      return data.keys().hasAll(['userId', 'xp', 'level']) &&
+        data.keys().hasOnly(['userId', 'xp', 'level', 'completedLessons', 'quizHistory', 'savedVocabIds', 'lastStudyDate', 'updatedAt']) &&
+        data.userId == request.auth.uid &&
+        data.userId is string && data.userId.size() <= 128 &&
+        data.xp is int && data.xp >= 0 &&
+        data.level is int && data.level >= 1 &&
+        (!('completedLessons' in data) || (data.completedLessons is list && data.completedLessons.size() <= 200)) &&
+        (!('savedVocabIds' in data) || (data.savedVocabIds is list && data.savedVocabIds.size() <= 1000)) &&
+        (!('quizHistory' in data) || (data.quizHistory is list && data.quizHistory.size() <= 500));
+    }
+
+    function isValidLesson(data) {
+      return data.keys().hasAll(['id', 'title', 'titleArabic', 'category', 'level']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.title is string && data.title.size() <= 200 &&
+        data.titleArabic is string && data.titleArabic.size() <= 200 &&
+        data.category in ['hijaiyah', 'mufrodat', 'qawaid', 'muhadatsah'] &&
+        data.level in ['pemula', 'menengah', 'mahir'];
+    }
+
+    function isValidQuiz(data) {
+      return data.keys().hasAll(['id', 'title', 'titleArabic', 'difficulty']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.title is string && data.title.size() <= 200 &&
+        data.titleArabic is string && data.titleArabic.size() <= 200 &&
+        data.difficulty in ['pemula', 'menengah', 'mahir'];
+    }
+
+    // 4. Secure Resource Match Blocks
+
+    // USERS COLLECTION: Setiap user HANYA bisa membaca/menulis datanya sendiri
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(userId) && isOwner(userId) && isValidUser(incoming());
+      allow update: if isValidId(userId) && isOwner(userId) && isValidUser(incoming()) && incoming().uid == existing().uid;
+      allow delete: if isValidId(userId) && (isOwner(userId) || isAdmin());
+
+      // Sub-koleksi progress per user
+      match /progress/{progressId} {
+        allow get, list: if isValidId(userId) && (isOwner(userId) || isAdmin());
+        allow create: if isValidId(userId) && isValidId(progressId) && isOwner(userId) && isValidProgress(incoming());
+        allow update: if isValidId(userId) && isValidId(progressId) && isOwner(userId) && isValidProgress(incoming()) && incoming().userId == existing().userId;
+        allow delete: if isValidId(userId) && isValidId(progressId) && (isOwner(userId) || isAdmin());
+      }
+    }
+
+    // USERPROGRESS ROOT COLLECTION: Alternatif akses langsung per user
+    match /userProgress/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isValidId(userId) && isOwner(userId) && isValidProgress(incoming());
+      allow update: if isValidId(userId) && isOwner(userId) && isValidProgress(incoming()) && incoming().userId == existing().userId;
+      allow delete: if isValidId(userId) && (isOwner(userId) || isAdmin());
+    }
+
+    // LESSONS & QUIZZES: Materi umum dapat dibaca oleh santri yang login, tulis hanya admin
+    match /lessons/{lessonId} {
+      allow get, list: if isSignedIn();
+      allow create: if isAdmin() && isValidId(lessonId) && isValidLesson(incoming());
+      allow update: if isAdmin() && isValidId(lessonId) && isValidLesson(incoming()) && incoming().id == existing().id;
+      allow delete: if isAdmin() && isValidId(lessonId);
+    }
+
+    match /quizzes/{quizId} {
+      allow get, list: if isSignedIn();
+      allow create: if isAdmin() && isValidId(quizId) && isValidQuiz(incoming());
+      allow update: if isAdmin() && isValidId(quizId) && isValidQuiz(incoming()) && incoming().id == existing().id;
+      allow delete: if isAdmin() && isValidId(quizId);
+    }
+  }
+}

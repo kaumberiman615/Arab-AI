@@ -1,0 +1,193 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Profil pengguna santri atau admin aplikasi pembelajaran bahasa Arab",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "ID unik pengguna dari Firebase Auth",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "Alamat email pengguna",
+          "maxLength": 256
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Nama tampilan pengguna",
+          "maxLength": 128
+        },
+        "role": {
+          "type": "string",
+          "description": "Peran pengguna dalam aplikasi",
+          "enum": ["admin", "student"]
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL foto profil pengguna",
+          "maxLength": 512
+        },
+        "institution": {
+          "type": "string",
+          "description": "Lembaga atau instansi pengguna",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Waktu pembuatan akun",
+          "maxLength": 64
+        },
+        "lastLogin": {
+          "type": "string",
+          "description": "Waktu terakhir login",
+          "maxLength": 64
+        }
+      },
+      "required": ["uid", "email", "displayName", "role"]
+    },
+    "UserProgress": {
+      "title": "UserProgress",
+      "description": "Data progres belajar santri termasuk XP, level, materi selesai, riwayat kuis, dan kosakata tersimpan",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID pengguna pemilik progres ini",
+          "maxLength": 128
+        },
+        "xp": {
+          "type": "integer",
+          "description": "Total poin pengalaman (XP) yang dikumpulkan"
+        },
+        "level": {
+          "type": "integer",
+          "description": "Tingkat level pembelajar"
+        },
+        "completedLessons": {
+          "type": "array",
+          "description": "Daftar ID materi yang telah diselesaikan santri"
+        },
+        "quizHistory": {
+          "type": "array",
+          "description": "Riwayat penyelesaian kuis beserta skor"
+        },
+        "savedVocabIds": {
+          "type": "array",
+          "description": "Daftar ID kosakata mufrodat yang disimpan atau ditandai"
+        },
+        "lastStudyDate": {
+          "type": "string",
+          "description": "Waktu belajar terakhir pengguna",
+          "maxLength": 64
+        }
+      },
+      "required": ["userId", "xp", "level"]
+    },
+    "Lesson": {
+      "title": "Lesson",
+      "description": "Modul materi pembelajaran bahasa Arab (Hijaiyah, Mufrodat, Qawaid, Muhadatsah)",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID materi unik",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Judul materi dalam Bahasa Indonesia",
+          "maxLength": 200
+        },
+        "titleArabic": {
+          "type": "string",
+          "description": "Judul materi dalam Bahasa Arab berharakat",
+          "maxLength": 200
+        },
+        "category": {
+          "type": "string",
+          "description": "Kategori materi",
+          "enum": ["hijaiyah", "mufrodat", "qawaid", "muhadatsah"]
+        },
+        "level": {
+          "type": "string",
+          "description": "Tingkat kesulitan materi",
+          "enum": ["pemula", "menengah", "mahir"]
+        },
+        "description": {
+          "type": "string",
+          "description": "Ringkasan materi",
+          "maxLength": 1000
+        },
+        "explanation": {
+          "type": "string",
+          "description": "Penjelasan rinci materi",
+          "maxLength": 5000
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Waktu materi diterbitkan",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "title", "titleArabic", "category", "level"]
+    },
+    "Quiz": {
+      "title": "Quiz",
+      "description": "Kuis dan latihan evaluasi bahasa Arab",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID kuis unik",
+          "maxLength": 128
+        },
+        "lessonId": {
+          "type": "string",
+          "description": "ID materi terkait",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Judul kuis",
+          "maxLength": 200
+        },
+        "titleArabic": {
+          "type": "string",
+          "description": "Judul kuis dalam bahasa Arab",
+          "maxLength": 200
+        },
+        "difficulty": {
+          "type": "string",
+          "description": "Tingkat kesulitan kuis",
+          "enum": ["pemula", "menengah", "mahir"]
+        }
+      },
+      "required": ["id", "title", "titleArabic", "difficulty"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Dokumen profil setiap user. Hanya pemilik (request.auth.uid == userId) yang dapat membaca dan menulis data miliknya."
+    },
+    "/users/{userId}/progress/{progressId}": {
+      "schema": "UserProgress",
+      "description": "Sub-koleksi progres belajar per user. Hanya user pemilik yang dapat membaca dan memperbarui progres belajarnya sendiri."
+    },
+    "/userProgress/{userId}": {
+      "schema": "UserProgress",
+      "description": "Koleksi progres belajar per user (akses direct root). Hanya pemilik (request.auth.uid == userId) yang dapat membaca dan menulis datanya sendiri."
+    },
+    "/lessons/{lessonId}": {
+      "schema": "Lesson",
+      "description": "Koleksi materi pembelajaran umum. Semua pengguna terautentikasi dapat membaca, hanya admin (fakhitaruqayyah04@gmail.com) yang dapat membuat, mengubah, dan menghapus."
+    },
+    "/quizzes/{quizId}": {
+      "schema": "Quiz",
+      "description": "Koleksi kuis evaluasi. Semua pengguna terautentikasi dapat membaca, hanya admin yang dapat membuat, mengubah, dan menghapus."
+    }
+  }
+}
